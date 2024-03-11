@@ -46,7 +46,7 @@ public class Main {
         client.connect(conOpt);
         System.out.println("Connected");
         //getUID();
-        ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(9);
+        ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(10);
         exec.scheduleAtFixedRate(() -> {
             try {
                 HeartBeat(client);
@@ -54,14 +54,15 @@ public class Main {
                 throw new RuntimeException(e);
             }
         },0,5, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {getWthrWrnMsg(client);},0,30, TimeUnit.MINUTES);
         exec.scheduleAtFixedRate(() -> {Publishing_ocean(client);},0,30, TimeUnit.MINUTES);
         exec.scheduleAtFixedRate(() -> {Publishing_oceandata(client);},0,30, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing_UV(client);},0,10, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing_ATMO(client);},0,10, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing_WAVE(client);},0,10, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing(client);},0,10, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing2(client);},0,10, TimeUnit.MINUTES);
-        exec.scheduleAtFixedRate(() -> {Publishing3(client);},0,10, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing_UV(client);},0,30, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing_ATMO(client);},0,30, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing_WAVE(client);},0,30, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing(client);},0,30, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing2(client);},0,30, TimeUnit.MINUTES);
+        exec.scheduleAtFixedRate(() -> {Publishing3(client);},0,30, TimeUnit.MINUTES);
         //client.disconnect();
     }
     //장비 uID
@@ -853,12 +854,7 @@ public class Main {
         DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyyMMdd");
         String currentDay = Day.format(dateFormat);
 
-        //현재 시간 HHmm
-        LocalTime Time = LocalTime.now();
-        DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HHmm");
-        String currentTime = Time.format(timeFormat);
-
-        String url = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=P5M6l%2BAiLQ3PknQ%2FC4KyDqPZx22%2FyLVYcX%2Feq%2FkuSWlrTbz2okiCsU3ih2pSsydn%2ForpSlFMP2XwsgTOmp3cYA%3D%3D&numOfRows=10&pageNo=1&base_date=" + currentDay + "&base_time=" + currentTime + "&nx=102&ny=94&&dataType=JSON";
+        String url = "https://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnMsg?serviceKey=ClSg8YETAqDKd35FklryZ%2BYPkYWY6Q24PTpGdagqszHjRSWzowl08EhLqpdZKJvBkIUv%2FmrEcPwIK3iV8I3QVQ%3D%3D&pageNo=1&numOfRows=100&dataType=json&stnId=143&fromTmFc="+currentDay+"&toTmFc=" + currentDay;
         HttpClient httpClient = HttpClient.newHttpClient();
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(url)).build();
         //Data parsing
@@ -870,24 +866,14 @@ public class Main {
             JSONArray items = bodyobj.getJSONObject("items").getJSONArray("item");
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.getJSONObject(i);
-                String category = item.getString("category");
-                //category + Value publish
-                switch (category) {
-                    //obsrvalue : 코드값 0 : 없음, 1 : 비, 2 : 비/눈, 3 : 눈 , 5 : 빗방울, 6 : 빗방울날림, 7 : 눈날림
-                    case "PTY":
-                        //String val = String.join(", ", "rain : " + obsrValue, "basedate : " + date, "basetime : " + time, "nx : " + nx, "ny : " + ny);
-                        String val = item.toString();
-                        String topic = "PohangPG/" + uID + "/rainNcst";
-                        MqttMessage message = new MqttMessage(val.getBytes());
-                        message.setQos(0);
-                        try {
-                            client.publish(topic, message);
-                            System.out.println("강수형태:" + message);
-                        } catch (MqttException e) {
-                            throw new RuntimeException(e);
-                        }
-                        break;
-
+                String val = item.toString();
+                String topic = "PohangPG/" + uID + "/WthrWrnMsg";
+                MqttMessage message = new MqttMessage(val.getBytes());
+                message.setQos(0);
+                try {
+                    client.publish(topic, message);
+                } catch (MqttException e) {
+                    throw new RuntimeException(e);
                 }
             }
         });
